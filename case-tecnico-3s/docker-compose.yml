@@ -1,0 +1,76 @@
+services:
+  case3s_db:
+    image: postgres:14
+    container_name: case3s_db
+    restart: always
+    environment:
+      POSTGRES_DB: case_tecnico
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 123456
+    ports:
+      - "5432:5432"
+    volumes:
+      - case-tecnico-3s_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      retries: 5
+
+  fastapi_service:
+    build:
+      context: ./api_fastapi
+    container_name: case3s-fastapi
+    environment:
+      - PYTHONPATH=/app
+    command: ["uvicorn", "api_fastapi.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./api_fastapi:/app/api_fastapi
+    depends_on:
+      case3s_db:
+        condition: service_healthy
+
+  django_web:
+    build:
+      context: ./backend_django
+    container_name: case3s-django
+    command: >
+      sh -c "
+        echo '🔧 Rodando migrations Django...' &&
+        python manage.py makemigrations core &&
+        python manage.py migrate &&
+        echo '✅ Migrations aplicadas com sucesso.' &&
+        exec python manage.py runserver 0.0.0.0:8001
+      "
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./backend_django:/app
+    depends_on:
+      case3s_db:
+        condition: service_healthy
+    environment:
+      - DJANGO_SETTINGS_MODULE=core.settings
+      - DB_NAME=case_tecnico
+      - DB_USER=postgres
+      - DB_PASSWORD=123456
+      - DB_HOST=case3s_db
+      - DB_PORT=5432
+
+  frontend:
+    build:
+      context: ./backend_django/frontend
+    container_name: case3s-frontend
+    command: sh -c "npm install && npm run dev -- --host"
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./backend_django/frontend:/app
+      - /app/node_modules
+    depends_on:
+      - django_web
+      - fastapi_service
+
+volumes:
+  case-tecnico-3s_pgdata:

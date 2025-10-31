@@ -25,7 +25,7 @@ A aplicação demonstra integração entre múltiplos serviços e registra autom
 1️⃣ Clone o repositório:
 
 ```bash
-git clone https://github.com/seuusuario/3s-Case.git
+git clone https://github.com/bruno-cassio/3s-Case.git
 cd 3s-Case/case-tecnico-3s
 ```
 
